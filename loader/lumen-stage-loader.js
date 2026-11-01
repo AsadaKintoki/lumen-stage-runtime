@@ -100,8 +100,7 @@
         let lastError = null;
 
         for (const attempt of attempts) {
-            const cssBase = attempt.fetched ? `https://cdn.jsdelivr.net/gh/${REPOSITORY}@${attempt.ref}` : attempt.base;
-            const cssUrl = withCacheBust(`${cssBase}/runtime/lumen-stage.css`, attempt);
+            const cssUrl = withCacheBust(`${attempt.base}/runtime/lumen-stage.css`, attempt);
             for (const bundleFile of bundleFiles) {
                 const scriptUrl = withCacheBust(`${attempt.base}/runtime/${bundleFile}`, attempt);
                 if (shouldProbeBundleAttempt(attempt, config)) {
@@ -113,7 +112,7 @@
                     }
                 }
                 try {
-                    injectCss(cssUrl);
+                    await injectCss(cssUrl);
                     if (attempt.fetched) await injectFetchedScript(scriptUrl, config.version);
                     else await injectScript(scriptUrl, config.version);
                     if (attempt.ref === config.latestRef && !config.latestFromCache) rememberLatestRef(attempt.ref);
@@ -618,14 +617,32 @@
     }
 
     function injectCss(href) {
-        let link = doc.querySelector(`#${CSS_ID}`);
-        if (!link) {
-            link = doc.createElement('link');
+        const existing = doc.querySelector(`#${CSS_ID}`);
+        if (existing?.href === href && existing.sheet) return Promise.resolve(existing);
+        existing?.remove?.();
+        return new Promise((resolve, reject) => {
+            const link = doc.createElement('link');
+            let settled = false;
+            let timer;
+            const finish = (error) => {
+                if (settled) return;
+                settled = true;
+                clearHostTimeout(timer);
+                link.onload = null;
+                link.onerror = null;
+                if (error) {
+                    link.remove();
+                    reject(error);
+                } else resolve(link);
+            };
             link.id = CSS_ID;
             link.rel = 'stylesheet';
+            link.href = href;
+            link.onload = () => finish();
+            link.onerror = () => finish(new Error(`样式加载失败：${href}`));
+            timer = setHostTimeout(() => finish(new Error(`样式加载超时：${href}`)), 20000);
             doc.head.appendChild(link);
-        }
-        link.href = href;
+        });
     }
 
     async function injectFetchedScript(src, expectedVersion = '') {
