@@ -1,6 +1,6 @@
 {
   "name": "Lumen Stage",
-  "version": "0.51.30",
+  "version": "0.51.31",
   "entry": "lumen-stage.js",
   "style": "lumen-stage.css"
 }
