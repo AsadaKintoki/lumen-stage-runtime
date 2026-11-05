@@ -1,6 +1,6 @@
 {
   "name": "lumen-card-media",
-  "version": "0.51.34",
+  "version": "0.51.35",
   "type": "module",
   "main": "index.js",
   "private": true
