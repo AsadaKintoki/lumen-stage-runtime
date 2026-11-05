@@ -149,8 +149,13 @@ export async function init(router) {
         return writePixels(dirs, body.scope, body.category, Buffer.from(body.image, 'base64'), body.format);
     });
     route('post', '/copy', async (dirs, body) => {
-        const source = await safe(dirs.images, parseImage(body.path, true));
-        return writePixels(dirs, body.scope, body.category, await fs.readFile(source), body.path.split('.').at(-1).toLowerCase());
+        const segments = parseImage(body.path, true);
+        let bytes;
+        try { bytes = await fs.readFile(await safe(dirs.images, segments)); } catch (error) {
+            if (error.code === 'ENOENT' || error.message === 'file-not-found') throw fail('source-image-missing', 404);
+            throw error;
+        }
+        return writePixels(dirs, body.scope, body.category, bytes, body.path.split('.').at(-1).toLowerCase());
     });
     route('post', '/list', (dirs, body) => inventory(dirs, body.scope).then(files => ({ files })));
     route('post', '/release', async (dirs, body) => {
